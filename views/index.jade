@@ -1,7 +1,26 @@
 extends layout
 
 block content
-  h1= title
-  form(action='/image' method='post' enctype='multipart/form-data')
-    input(type='file' name='image' id='image')
-    button(type='submit') Upload
+  .container
+    .row
+      .col-xs-12.col-sm-7
+        h1 Place Goldblum
+        blockquote.blockquote
+          p Your scientists were so preoccupied with whether or not they could they didn't stop to think if they should.
+
+        p You know how this works. You know why you're here. The URL convention for the placeholders is
+          code http://www.placegoldblum.com/{w}/{h}
+
+        p For example
+          br
+          code http://www.placegoldblum.com/400/200
+          br
+          code http://www.placegoldblum.com/300
+
+      .col-xs-12.col-sm-5
+        img.img-fluid(src='img/12466357953_cf3b96f362_b.jpg')
+
+    .row
+      .col-12
+        p.small Made with ♥ by&nbsp;
+          a(href='http://www.caledunlap.com' target='_blank') Cale Dunlap

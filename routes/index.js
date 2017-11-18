@@ -60,64 +60,66 @@ router.get('/delete/:key', (req, res) => {
   }
 });
 
-router.post('/image', uploader.single('image'), (req, res) => {
-  if(!req.file) {
-    res.status(400);
-    res.end();
-  }
-  const imagePath = path.join(__dirname, '../', req.file.path);
-  const image = new db.Image({
-    name: req.file.filename
-  });
+if(process.env.NODE_ENV === 'development') {
+  router.post('/image', uploader.single('image'), (req, res) => {
+    if(!req.file) {
+      res.status(400);
+      res.end();
+    }
+    const imagePath = path.join(__dirname, '../', req.file.path);
+    const image = new db.Image({
+      name: req.file.filename
+    });
 
-  Promise.promisify(checksum.file)(imagePath)
-  .then((cs) => {
-    // Get image checksum
-    image.checksum = cs;
-    return cs;
-  })
-  .then((cs) => {
-    // Make sure the checksum doesn't exist already
-    return db.Image.find({checksum: cs})
-    .then(images => {
-      if(images.length > 0) {
-        throw new Error('Image already exists');
-      }
+    Promise.promisify(checksum.file)(imagePath)
+    .then((cs) => {
+      // Get image checksum
+      image.checksum = cs;
+      return cs;
+    })
+    .then((cs) => {
+      // Make sure the checksum doesn't exist already
+      return db.Image.find({checksum: cs})
+      .then(images => {
+        if(images.length > 0) {
+          throw new Error('Image already exists');
+        }
+      });
+    })
+    .then(() => {
+      // Get image data and save
+      return gm(imagePath)
+      .size((err, size) => {
+        if(err) {
+          throw err;
+        } else {
+          image.width = size.width;
+          image.height = size.height;
+        }
+      });
+    })
+    .then(() => {
+      // Upload the image to Cloudinary for later transformation
+      return Promise.promisify(cloudinary.v2.uploader.upload)(imagePath)
+      .then(result => {
+        image.public_id = result.public_id;
+        image.url = result.url;
+        return image.save();
+      });
+    })
+    .then(() => {
+      // Notify the user
+      res.end('Image uploaded');
+    })
+    .catch(err => {
+      res.status(500);
+      res.end(err.message || err);
+    })
+    .finally(() => {
+      fs.unlink(imagePath);
     });
-  })
-  .then(() => {
-    // Get image data and save
-    return gm(imagePath)
-    .size((err, size) => {
-      if(err) {
-        throw err;
-      } else {
-        image.width = size.width;
-        image.height = size.height;
-      }
-    });
-  })
-  .then(() => {
-    // Upload the image to Cloudinary for later transformation
-    return Promise.promisify(cloudinary.v2.uploader.upload)(imagePath)
-    .then(result => {
-      image.public_id = result.public_id;
-      image.url = result.url;
-      return image.save();
-    });
-  })
-  .then(() => {
-    // Notify the user
-    res.end('Image uploaded');
-  })
-  .catch(err => {
-    res.status(500);
-    res.end(err.message || err);
-  })
-  .finally(() => {
-    fs.unlink(imagePath);
   });
-});
+}
 
 function sendUncached(width, height, res, cacheKey) {
   // Find an image at random

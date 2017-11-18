@@ -1,0 +1,7 @@
+extends layout
+
+block content
+  h1= title
+  form(action='/image' method='post' enctype='multipart/form-data')
+    input(type='file' name='image' id='image')
+    button(type='submit') Upload
