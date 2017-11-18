@@ -148,7 +148,7 @@ function sendUncached(width, height, res, cacheKey) {
           if(config.cache.enable) {
             console.log('Cache miss, writing');
             cache.set(cacheKey, data, {
-              expires: 30
+              expires: 3600 // 1 hr
             }, (err, val) => {
               if(err) {
                 console.error(err);
