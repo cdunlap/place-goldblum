@@ -9,8 +9,8 @@ const config = {
   cache: {
     enable: true,
     servers: process.env.MEMCACHEDCLOUD_SERVERS,
-    username: process.env.MEMCACHED_USERNAME,
-    password: process.env.MEMCACHED_PASSWORD
+    username: process.env.MEMCACHEDCLOUD_USERNAME,
+    password: process.env.MEMCACHEDCLOUD_PASSWORD
   },
   cloudinary: {
     url: process.env.CLOUDINARY_URL
