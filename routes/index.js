@@ -11,53 +11,86 @@ const Promise = require('bluebird');
 const randomInt = require('random-int');
 const cloudinary = require('cloudinary');
 const download = require('download');
-const config = require('../config/index');
+const config = require('../config');
 const cache = require('../cache');
 
 const uploader = multer({
   dest: './uploads/',
   rename: (fieldname, filename) => {
-    console.log('Multer', arguments);
     return filename;
   }
 });
 
 /* GET home page. */
 router.get('/', (req, res) => {
-  res.render('index', { title: 'Express' });
+  cache.getAsync('photoCount')
+  .then(count => {
+    if(!count) {
+      console.log('Cache miss: photoCount', count);
+      return db.Image.count()
+      .then(count => {
+        console.log('Cache write: photoCount', count);
+        return cache.setAsync('photoCount', count.toString())
+        .then(response => {
+          console.log(response);
+          return count;
+        });
+      });
+    }
+    console.log('Cache hit: photoCount', count);
+    return count;
+  })
+  .then(photoCount => {
+    res.render('index', {photoCount});
+  })
+  .catch(err => {
+    console.error(err);
+    res.status(500);
+    res.end();
+  });
 });
 
-router.get('/image', (req, res) => {
-  db.Image.find({})
-  .then(images => {
-    res.json(images);
+/* GET attribution page */
+router.get('/attribution', (req, res) => {
+  db.Image.find()
+  .then(photos => {
+    res.render('attribution', {photos});
+  })
+  .catch(err => {
+    console.error(err);
+    res.status(500);
+    res.end();
   });
 });
 
 router.get('/clear', (req, res) => {
-  if(config.cache.enable) {
-    cache.flush((err, response) => {
-      if(err) {
-        console.error(err);
-      } else {
-        console.log('Cache flushed', response);
-      }
-      res.end();
-    });
-  }
+  cache.flushAsync()
+  .then(response => {
+    console.log('Flushed cache', response);
+    res.status(200);
+  })
+  .catch(err => {
+    console.error('Error flushing cache', err);
+    res.status(500);
+  })
+  .finally(() => {
+    res.end();
+  });
 });
 
 router.get('/delete/:key', (req, res) => {
-  if(config.cache.enable) {
-    cache.delete(req.params.key, (err, response) => {
-      if(err) {
-        console.error(err);
-      } else {
-        console.log('Cache deleted', req.params.key, response);
-      }
-      res.end();
-    });
-  }
+  cache.delAsync(req.params.key)
+  .then(response => {
+    console.log('Deleted cache key', req.params.key);
+    res.status(200);
+  })
+  .catch(err => {
+    console.error('Error deleting cache key', req.params.key, err);
+    res.status(500);
+  })
+  .finally(() => {
+    res.end();
+  });
 });
 
 if(process.env.NODE_ENV === 'development') {
@@ -108,8 +141,16 @@ if(process.env.NODE_ENV === 'development') {
       });
     })
     .then(() => {
-      // Notify the user
-      res.end('Image uploaded');
+      // Clear caches
+      return Promise.join(
+        cache.delAsync('photoCount'), cache.delAsync('photos'),
+        (res1, res2) => {
+          console.log('Cleared photoCount and photos', res1, res2);
+        });
+    })
+    .then(() => {
+      req.flash('success', 'Image uploaded');
+      res.redirect('/upload');
     })
     .catch(err => {
       res.status(500);
@@ -121,74 +162,57 @@ if(process.env.NODE_ENV === 'development') {
   });
 }
 
-function sendUncached(width, height, res, cacheKey) {
-  // Find an image at random
-  db.Image.count().exec((err, count) => {
+function fetchImage(width, height) {
+  return db.Image.count()
+  .then(count => {
     const idx = randomInt(count - 1);
-    db.Image.findOne().skip(idx).exec((err, image) => {
-      if(err) {
-        res.status(500);
-        res.end();
-        console.error(err);
-      } else {
-        const url = cloudinary.url(image.public_id, {
-          width: width,
-          height: height,
-          gravity: 'face',
-          crop: 'fill',
-          format: 'jpg'
-        });
-        console.log('Requesting', url);
-        download(url).then(data => {
-          res.set('Content-Type', 'image/jpeg');
-          res.send(data);
-          res.end();
-
-          // Store record in cache
-          if(config.cache.enable) {
-            console.log('Cache miss, writing');
-            cache.set(cacheKey, data, {
-              expires: 3600 // 1 hr
-            }, (err, val) => {
-              if(err) {
-                console.error(err);
-              } else {
-                console.log('Wrote to cache');
-              }
-            });
-          }
-        }).catch(err => {
-          console.error(err);
-          res.status(500);
-          res.end();
-        });
-      }
+    return db.Image.findOne().skip(idx);
+  })
+  .then(image => {
+    const url = cloudinary.url(image.public_id, {
+      width: width,
+      height: height,
+      gravity: 'face',
+      crop: 'fill',
+      format: 'jpg'
     });
-  });
+    console.log('Requesting url', url);
+    return download(url);
+  })
 }
 
 router.get(['/:width', '/:width/:height'], (req, res) => {
   let {width, height} = req.params;
   height = height || width;
 
-  if(config.cache.enable) {
-    const cacheKey = `${width}_${height}`;
-    console.log('Cache key', cacheKey);
-    // TODO: Check cache for key, return it
-    cache.get(cacheKey, (err, data) => {
-      if(!err && data) {
-        console.log('Cache hit');
-        res.set('Content-Type', 'image/jpeg');
-        res.send(data);
-        res.end();
-      } else {
-        console.error(err);
-        sendUncached(width, height, res, cacheKey);
-      }
-    })
-  } else {
-    sendUncached(width, height, res);
-  }
+  const cacheKey = `${width}_${height}`;
+  console.log('Cache key', cacheKey);
+  cache.getAsync(cacheKey)
+  .then(data => {
+    if(data) {
+      console.log('Cache hit');
+      return data;
+    }
+    console.log('Cache miss');
+    return fetchImage(width, height)
+    .then(data => {
+      // Store it
+      console.log('Writing cache', cacheKey);
+      cache.setAsync(cacheKey, data); // Don't need to wait for this
+      return data;
+    });
+  })
+  .then(data => {
+    res.set('Content-Type', 'image/jpeg');
+    res.send(data);
+  })
+  .catch(err => {
+    console.error(err);
+    res.status(500);
+  })
+  .finally(() => {
+    res.end();
+  });
 });
 
 module.exports = router;

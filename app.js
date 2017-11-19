@@ -1,13 +1,14 @@
 
 
-
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const favicon = require('serve-favicon');
 const logger = require('morgan');
 const cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
-const multer = require('multer');
+const session = require('express-session');
+const flash = require('connect-flash');
 
 const routes = require('./routes/index');
 
@@ -17,7 +18,7 @@ const env = process.env.NODE_ENV || 'development';
 app.locals.ENV = env;
 app.locals.ENV_DEVELOPMENT = env == 'development';
 
-const config = require('./config/index');
+const config = require('./config');
 
 console.log('Config', config);
 
@@ -33,8 +34,13 @@ app.use(bodyParser.urlencoded({
   limit: '4mb',
   extended: true
 }));
-// app.use(cookieParser());
 
+app.use(cookieParser());
+app.use(session({
+  cookie: {maxAge: 60000},
+  secret: process.env.SESSION_SECRET
+}));
+app.use(flash());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', routes);

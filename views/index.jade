@@ -10,6 +10,9 @@ block content
 
         p You know how this works. You know why you're here. The URL convention for the placeholders is
           code http://www.placegoldblum.com/{w}/{h}
+          &nbsp;You'll get one of&nbsp;
+          a(href='/attribution') #{photoCount} random photos
+          &nbsp;cropped to the dimensions specified.
 
         p For example
           br
@@ -17,10 +20,20 @@ block content
           br
           code http://www.placegoldblum.com/300
 
+        .row
+          .col-6
+            img.img-fluid(src='/600')
+          .col-6
+            .row
+              .col-12
+                img.img-fluid(src='/200/100')
+              .col-12
+                img.img-fluid(src='/200')
+
       .col-xs-12.col-sm-5
         img.img-fluid(src='img/12466357953_cf3b96f362_b.jpg')
 
     .row
       .col-12
-        p.small Made with ♥ by&nbsp;
-          a(href='http://www.caledunlap.com' target='_blank') Cale Dunlap
+        p.small Made by #[a(href='http://www.caledunlap.com' target='_blank') Cale Dunlap]. Inspired by #[a(href='http://placecage.com' target='_blank') placecage.com] and #[a(href='http://www.fillmurray.com' target='_blank') fillmurray.com].
+        p.small #[a(href='/attribution') Photo attributions viewed here].

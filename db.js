@@ -1,4 +1,4 @@
-const config = require('./config/index');
+const config = require('./config');
 const mongoose = require('mongoose');
 const Promise = require('bluebird');
 mongoose.connect(config.db.url, {useMongoClient: true});
@@ -12,6 +12,9 @@ module.exports ={
     mime: String,
     checksum: String,
     public_id: String,
-    url: String
+    url: String,
+    license: String,
+    license_url: String,
+    attribution: String
   })
 };
