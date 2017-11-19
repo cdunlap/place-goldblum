@@ -9,7 +9,17 @@ html(lang='en')
       link(rel='stylesheet', href='https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.0.0-beta/css/bootstrap.min.css')
       link(rel='stylesheet', href='/css/style.css')
     block js
+      // Global site tag (gtag.js) - Google Analytics
+      script(async src="https://www.googletagmanager.com/gtag/js?id=UA-2784663-18")
+
       if ENV_DEVELOPMENT
         script(src='http://localhost:35729/livereload.js')
   body
     block content
+
+    script.
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'UA-2784663-18');
