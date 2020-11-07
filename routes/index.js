@@ -7,7 +7,7 @@ const fs = require('fs');
 const gm = require('gm');
 const multer = require('multer');
 const checksum = require('checksum');
-const Promise = require('bluebird');
+// const Promise = require('bluebird');
 const randomInt = require('random-int');
 const cloudinary = require('cloudinary');
 const download = require('download');
@@ -22,76 +22,67 @@ const uploader = multer({
 });
 
 /* GET home page. */
-router.get('/', (req, res) => {
-  cache.getAsync('photoCount')
-  .then(count => {
-    if(!count) {
-      console.log('Cache miss: photoCount', count);
-      return db.Image.count()
-      .then(count => {
-        console.log('Cache write: photoCount', count);
-        return cache.setAsync('photoCount', count.toString())
-        .then(response => {
-          console.log(response);
-          return count;
-        });
-      });
+router.get('/', async (req, res) => {
+  try {
+    let photoCount = await cache.get('photoCount')
+    if(!photoCount) {
+      console.log('Cache miss: photoCount ', photoCount)
+      const { rows } = await db.query('SELECT COUNT(*) AS photoCount FROM images')
+      photoCount = parseInt(rows[0].photocount)
+      console.log('Cache write: photoCount ', photoCount)
+      await cache.set('photoCount', photoCount.toString())
     }
-    console.log('Cache hit: photoCount', count);
-    return count;
-  })
-  .then(photoCount => {
-    res.render('index', {photoCount});
-  })
-  .catch(err => {
+    else {
+      console.log('Cache hit: photoCount', photoCount)
+    }
+    res.render('index', {photoCount})
+  } catch (err) {
     console.error(err);
     res.status(500);
-    res.end();
-  });
+    res.end()
+  }
 });
 
 /* GET attribution page */
-router.get('/attribution', (req, res) => {
-  db.Image.find()
-  .then(photos => {
-    res.render('attribution', {photos});
-  })
-  .catch(err => {
-    console.error(err);
-    res.status(500);
-    res.end();
-  });
+router.get('/attribution', async (req, res) => {
+  try {
+    let photos = await cache.get('photos')
+    if(!photos) {
+      const { rows } = await db.query('SELECT * FROM images')
+      photos = rows
+      cache.set('photos', photos)
+    }
+    res.render('attribution', { photos })
+  } catch (err) {
+    console.error(err)
+    res.status(500)
+    res.end()
+  }
+})
+
+router.get('/clear', async (req, res) => {
+  try {
+    const response = await cache.flush()
+    console.log('Flushed cache', response)
+    res.status(200)
+  } catch (err) {
+    res.status(500)
+  } finally {
+    res.end()
+  }
 });
 
-router.get('/clear', (req, res) => {
-  cache.flushAsync()
-  .then(response => {
-    console.log('Flushed cache', response);
-    res.status(200);
-  })
-  .catch(err => {
-    console.error('Error flushing cache', err);
-    res.status(500);
-  })
-  .finally(() => {
-    res.end();
-  });
-});
-
-router.get('/delete/:key', (req, res) => {
-  cache.delAsync(req.params.key)
-  .then(response => {
-    console.log('Deleted cache key', req.params.key);
-    res.status(200);
-  })
-  .catch(err => {
-    console.error('Error deleting cache key', req.params.key, err);
-    res.status(500);
-  })
-  .finally(() => {
-    res.end();
-  });
-});
+router.get('/delete/:key', async (req, res) => {
+  try {
+    await cache.del(req.params.key)
+    res.status(200)
+  } catch(err) {
+    console.error(`Error deleting cache key ${req.params.key}`, err);
+    res.status(500)
+  } finally {
+    res.end()
+  }
+})
 
 if(process.env.NODE_ENV === 'development') {
   router.post('/image', uploader.single('image'), (req, res) => {
@@ -162,57 +153,48 @@ if(process.env.NODE_ENV === 'development') {
   });
 }
 
-function fetchImage(width, height) {
-  return db.Image.count()
-  .then(count => {
-    const idx = randomInt(count - 1);
-    return db.Image.findOne().skip(idx);
-  })
-  .then(image => {
-    const url = cloudinary.url(image.public_id, {
-      width: width,
-      height: height,
-      gravity: 'face',
-      crop: 'fill',
-      format: 'jpg'
-    });
-    console.log('Requesting url', url);
-    return download(url);
-  })
+const fetchImage = async (width, height) => {
+  const { rows } = await db.query('select * from images order by random() limit 1')
+  const image = rows[0]
+  const url = cloudinary.url(image.public_id, {
+    width: width,
+    height: height,
+    gravity: 'face',
+    crop: 'fill',
+    format: 'jpg'
+  });
+  return download(url)
 }
 
-router.get(['/:width', '/:width/:height'], (req, res) => {
-  let {width, height} = req.params;
-  height = height || width;
+router.get(['/:width', '/:width/:height'], async (req, res) => {
+  try {
+    let { width, height } = req.params
+    height = height || width
+    const cacheKey = `${width}_${height}`
+    console.log('Cache key', cacheKey)
 
-  const cacheKey = `${width}_${height}`;
-  console.log('Cache key', cacheKey);
-  cache.getAsync(cacheKey)
-  .then(data => {
+    let data = await cache.get(cacheKey)
     if(data) {
-      console.log('Cache hit');
-      return data;
+      console.log('Cache hit')
+    } else {
+      console.log('Cache miss', cacheKey)
+      data = await fetchImage(width, height)
+      cache.set(cacheKey, data)
     }
-    console.log('Cache miss');
-    return fetchImage(width, height)
-    .then(data => {
-      // Store it
-      console.log('Writing cache', cacheKey);
-      cache.setAsync(cacheKey, data); // Don't need to wait for this
-      return data;
-    });
-  })
-  .then(data => {
-    res.set('Content-Type', 'image/jpeg');
-    res.send(data);
-  })
-  .catch(err => {
-    console.error(err);
-    res.status(500);
-  })
-  .finally(() => {
-    res.end();
-  });
-});
+
+    // If there's still no data, return 404
+    if(!data) {
+      res.status(404)
+    } else {
+      res.set('Content-Type', 'image/jpeg')
+      res.send(data)
+    }
+  } catch(err) {
+    console.error(err)
+    res.status(500)
+  } finally {
+    res.end()
+  }
+})
 
 module.exports = router;
