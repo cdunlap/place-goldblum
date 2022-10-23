@@ -1,14 +1,8 @@
-
-
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const favicon = require('serve-favicon');
 const logger = require('morgan');
-const cookieParser = require('cookie-parser');
-const bodyParser = require('body-parser');
-const session = require('express-session');
-const flash = require('connect-flash');
 
 const routes = require('./routes/index');
 
@@ -18,14 +12,6 @@ const env = process.env.NODE_ENV || 'development';
 app.locals.ENV = env;
 app.locals.ENV_DEVELOPMENT = env == 'development';
 
-if(env === 'development') {
-  require('dotenv').config();
-}
-
-const config = require('./config');
-
-console.log('Config', config);
-
 // view engine setup
 
 app.set('views', path.join(__dirname, 'views'));
@@ -33,18 +19,7 @@ app.set('view engine', 'jade');
 
 app.use(favicon(__dirname + '/public/favicon.ico'));
 app.use(logger('dev'));
-// app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({
-  limit: '4mb',
-  extended: true
-}));
 
-app.use(cookieParser());
-app.use(session({
-  cookie: {maxAge: 60000},
-  secret: process.env.SESSION_SECRET
-}));
-app.use(flash());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', routes);

@@ -1,0 +1,8 @@
+{
+  "appService.zipIgnorePattern": [
+    "node_modules{,/**}",
+    ".vscode{,/**}"
+  ],
+  "appService.defaultWebAppToDeploy": "/subscriptions/81f18797-f6a3-4a50-9ba5-c150e6112119/AppServices/subscriptions/81f18797-f6a3-4a50-9ba5-c150e6112119/resourceGroups/placegoldblum/providers/Microsoft.Web/sites/placegoldblum",
+  "appService.deploySubpath": "."
+}
