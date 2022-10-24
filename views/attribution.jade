@@ -11,6 +11,6 @@ block content
           figure.figure
             img.figure-img.img-fluid(src=photo.url alt='')
             figcaption.figure-caption
-              .attribution= photo.attribution
+              .attribution= photo.context.custom.attribution
               .license
-                a(href=photo.license_url) #{photo.license}
+                a(href=photo.license_url) #{photo.context.custom.license}

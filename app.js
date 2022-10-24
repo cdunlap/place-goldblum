@@ -3,6 +3,7 @@ const express = require('express');
 const path = require('path');
 const favicon = require('serve-favicon');
 const logger = require('morgan');
+const { fillImageCache } = require('./cache');
 
 const routes = require('./routes/index');
 
@@ -56,5 +57,7 @@ app.use((err, req, res, next) => {
         title: 'error'
     });
 });
+
+fillImageCache();
 
 module.exports = app;
