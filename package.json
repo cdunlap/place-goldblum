@@ -4,7 +4,7 @@
   "private": true,
   "main": "app.js",
   "scripts": {
-    "dev": "nodemon --inspect ./bin/www",
+    "dev": "nodemon --inspect -r dotenv/config ./bin/www dotenv_config_path=./.env.dev",
     "start": "node ./bin/www",
     "test": "mocha --recursive test",
     "test:coverage": "nyc npm test",
@@ -13,7 +13,6 @@
   },
   "dependencies": {
     "cloudinary": "^1.9.1",
-    "dotenv": "^8.2.0",
     "download": "^6.2.5",
     "express": "^4.13.3",
     "jade": "^1.11.0",
@@ -24,6 +23,7 @@
   },
   "devDependencies": {
     "debug": "^2.2.0",
+    "dotenv": "^16.0.3",
     "nodemon": "^2.0.20"
   }
 }
